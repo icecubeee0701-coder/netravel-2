@@ -542,7 +542,12 @@ function deleteProfile(){
 render();
 
 // ── FILE INPUT LISTENER ──
-document.getElementById('avatar-file-input').addEventListener('change', function(){
+const avatarFileInput = document.getElementById('avatar-file-input');
+// 每次 label 被點擊前先清空，確保換照片時一定觸發 change
+document.querySelector('label[for="avatar-file-input"]').addEventListener('click', ()=>{
+  avatarFileInput.value = '';
+});
+avatarFileInput.addEventListener('change', function(){
   const file = this.files[0];
   if(!file) return;
   const reader = new FileReader();
