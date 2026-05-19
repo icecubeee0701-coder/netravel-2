@@ -73,6 +73,7 @@
   .hero-bg {
     position:absolute; inset:0;
     background:linear-gradient(135deg,#0d1a2e 0%,#1a0d06 60%,#0a1a0f 100%);
+    background-size:cover; background-position:center;
   }
   .hero-deco {
     position:absolute; right:-20px; top:0; bottom:0; width:55%;
@@ -304,7 +305,7 @@
 <!-- ════════════════ PAGE: 手帳 ════════════════ -->
 <div class="page active" id="page-journal">
   <div class="navbar">
-    <div class="nav-logo">✈ 福岡手帳</div>
+    <div class="nav-logo" id="nav-logo" onclick="openHeroEdit()" style="cursor:pointer;">✈ 福岡手帳</div>
     <button onclick="openHeroEdit()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'Georgia',serif;">⚙️ 設定</button>
   </div>
 
@@ -318,8 +319,8 @@
   </div>
 
   <div class="hero">
-    <div class="hero-bg"></div>
-    <div class="hero-deco">🏯</div>
+    <div class="hero-bg" id="hero-bg"></div>
+    <div class="hero-deco" id="hero-deco">🏯</div>
     <div class="hero-overlay"></div>
     <div class="hero-content">
       <div class="hero-tag" id="hero-tag">九州之旅</div>
@@ -424,6 +425,48 @@
   </div>
 </div>
 
+<!-- Hero Edit Modal -->
+<div class="form-modal-bg" id="hero-modal-bg" onclick="closeHeroModalBg(event)" style="display:none;">
+  <div class="form-modal" style="max-height:85vh;overflow-y:auto;">
+    <div class="form-title">⚙️ 自訂封面與標題</div>
+
+    <div class="field">
+      <label>手帳名稱（左上角標題）</label>
+      <input id="hm-logo" type="text" placeholder="例：✈ 福岡手帳" maxlength="20">
+    </div>
+    <div class="field">
+      <label>封面大圖</label>
+      <div style="position:relative;width:100%;height:130px;border-radius:10px;overflow:hidden;background:var(--bg4);border:1px solid var(--border);margin-bottom:8px;">
+        <div id="hm-cover-preview" style="width:100%;height:100%;background:linear-gradient(135deg,#0d1a2e,#1a0d06);background-size:cover;background-position:center;"></div>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+          <label for="hm-cover-file" style="background:rgba(0,0,0,0.6);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;">📷 選取封面照片</label>
+          <input type="file" id="hm-cover-file" accept="image/*" style="display:none;">
+          <button type="button" onclick="clearHeroCover()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;font-family:'Georgia',serif;">✕ 移除照片</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>封面標題</label>
+      <input id="hm-title" type="text" placeholder="例：🇯🇵 福岡" maxlength="30">
+    </div>
+    <div class="field">
+      <label>封面副標語</label>
+      <textarea id="hm-sub" placeholder="一句描述這趟旅行的話..." style="min-height:60px;"></textarea>
+    </div>
+    <div class="field">
+      <label>標籤</label>
+      <input id="hm-tag" type="text" placeholder="例：九州之旅" maxlength="15">
+    </div>
+    <div class="field">
+      <label>旅遊日期</label>
+      <input id="hm-date" type="text" placeholder="例：2025.03.15 – 03.20">
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel2" onclick="closeHeroModal()">取消</button>
+      <button class="btn-save" onclick="saveHeroModal()">儲存</button>
+    </div>
+  </div>
+</div>
 <!-- Day Item Form -->
 <div class="day-form-modal-bg" id="day-form-bg">
   <div class="form-modal">
@@ -475,13 +518,11 @@ function compressImage(file, maxSize, quality, callback){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  // 地點封面照片
   const fileInput=document.getElementById('ef-img-file');
-  document.querySelector('label[for="ef-img-file"]').addEventListener('click',()=>{
-    fileInput.value='';
-  });
+  document.querySelector('label[for="ef-img-file"]').addEventListener('click',()=>{ fileInput.value=''; });
   fileInput.addEventListener('change',function(){
-    const file=this.files[0];
-    if(!file) return;
+    const file=this.files[0]; if(!file) return;
     compressImage(file, 800, 0.75, function(base64){
       currentEntryImg=base64;
       const prev=document.getElementById('ef-img-preview');
@@ -489,6 +530,19 @@ document.addEventListener('DOMContentLoaded',()=>{
       prev.style.backgroundSize='cover';
       prev.style.backgroundPosition='center';
       prev.innerHTML='';
+    });
+  });
+  // 封面大圖
+  const coverInput=document.getElementById('hm-cover-file');
+  document.querySelector('label[for="hm-cover-file"]').addEventListener('click',()=>{ coverInput.value=''; });
+  coverInput.addEventListener('change',function(){
+    const file=this.files[0]; if(!file) return;
+    compressImage(file, 1200, 0.82, function(base64){
+      heroCoverImg=base64;
+      const p=document.getElementById('hm-cover-preview');
+      p.style.backgroundImage=`url('${base64}')`;
+      p.style.backgroundSize='cover';
+      p.style.backgroundPosition='center';
     });
   });
 });
@@ -754,19 +808,68 @@ function editSection(secId){
   save(); renderJournal();
 }
 
-// ── HERO EDIT ──
+// ── HERO EDIT MODAL ──
+let heroCoverImg = '';
+
 function openHeroEdit(){
-  const t=prompt('封面標題：',data.hero.title); if(t===null) return;
-  const s=prompt('封面描述：',data.hero.sub); if(s===null) return;
-  const tag=prompt('標籤：',data.hero.tag); if(tag===null) return;
-  const date=prompt('旅遊日期（顯示在封面）：',data.hero.date||''); if(date===null) return;
-  data.hero={title:t,sub:s,tag,date};
-  document.getElementById('hero-title').textContent=t;
-  document.getElementById('hero-sub').textContent=s;
-  document.getElementById('hero-tag').textContent=tag;
-  document.getElementById('hero-date').textContent='📅 '+(date||'我的旅程');
-  save();
+  heroCoverImg = data.hero.cover||'';
+  document.getElementById('hm-logo').value = data.hero.logo||'✈ 福岡手帳';
+  document.getElementById('hm-title').value = data.hero.title||'';
+  document.getElementById('hm-sub').value = data.hero.sub||'';
+  document.getElementById('hm-tag').value = data.hero.tag||'';
+  document.getElementById('hm-date').value = data.hero.date||'';
+  // preview
+  const prev = document.getElementById('hm-cover-preview');
+  if(heroCoverImg){
+    prev.style.backgroundImage=`url('${heroCoverImg}')`;
+  } else {
+    prev.style.backgroundImage='';
+  }
+  document.getElementById('hm-cover-file').value='';
+  document.getElementById('hero-modal-bg').style.display='flex';
 }
+function closeHeroModal(){ document.getElementById('hero-modal-bg').style.display='none'; }
+function closeHeroModalBg(e){ if(e.target===document.getElementById('hero-modal-bg')) closeHeroModal(); }
+function clearHeroCover(){
+  heroCoverImg='';
+  document.getElementById('hm-cover-preview').style.backgroundImage='';
+  document.getElementById('hm-cover-file').value='';
+}
+function saveHeroModal(){
+  const logo = document.getElementById('hm-logo').value.trim()||'✈ 福岡手帳';
+  const title = document.getElementById('hm-title').value.trim()||data.hero.title;
+  const sub = document.getElementById('hm-sub').value.trim();
+  const tag = document.getElementById('hm-tag').value.trim();
+  const date = document.getElementById('hm-date').value.trim();
+  data.hero = { ...data.hero, logo, title, sub, tag, date, cover:heroCoverImg };
+  applyHero();
+  save();
+  closeHeroModal();
+}
+
+function applyHero(){
+  const h = data.hero;
+  // logo
+  document.getElementById('nav-logo').textContent = h.logo||'✈ 福岡手帳';
+  // hero text
+  document.getElementById('hero-title').textContent = h.title;
+  document.getElementById('hero-sub').textContent = h.sub;
+  document.getElementById('hero-tag').textContent = h.tag;
+  document.getElementById('hero-date').textContent = '📅 '+(h.date||'我的旅程');
+  // cover photo
+  const bg = document.getElementById('hero-bg');
+  const deco = document.getElementById('hero-deco');
+  if(h.cover){
+    bg.style.backgroundImage = `url('${h.cover}')`;
+    bg.style.background = `url('${h.cover}') center/cover no-repeat`;
+    deco.style.display = 'none';
+  } else {
+    bg.style.background = 'linear-gradient(135deg,#0d1a2e 0%,#1a0d06 60%,#0a1a0f 100%)';
+    bg.style.backgroundImage = '';
+    deco.style.display = '';
+  }
+}
+
 
 // ── DAY PLANNER ──
 function renderDayPage(){
@@ -878,12 +981,7 @@ function deleteDayItem(){
 
 // ── INIT ──
 renderJournal();
-// Apply saved hero
-const h=data.hero;
-document.getElementById('hero-title').textContent=h.title;
-document.getElementById('hero-sub').textContent=h.sub;
-document.getElementById('hero-tag').textContent=h.tag;
-document.getElementById('hero-date').textContent='📅 '+(h.date||'我的旅程');
+applyHero();
 </script>
 </body>
 </html>
