@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="福岡手帳">
+<title>福岡手帳 ✈️</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root {
+    --red: #e50914;
+    --red-dark: #c0060f;
+    --bg: #0a0a0a;
+    --bg2: #141414;
+    --bg3: #1c1c1c;
+    --bg4: #252525;
+    --border: #2a2a2a;
+    --text: #e5e5e5;
+    --muted: #999;
+    --dim: #555;
+  }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Georgia',serif; overflow-x:hidden; }
+
+  /* ── TABS ── */
+  .tab-bar {
+    position:fixed; bottom:0; left:0; right:0; z-index:500;
+    background:rgba(10,10,10,0.96);
+    border-top:1px solid var(--border);
+    display:flex;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .tab-btn {
+    flex:1; border:none; background:none;
+    color:var(--dim); font-size:10px;
+    padding:10px 0 6px;
+    cursor:pointer; display:flex; flex-direction:column;
+    align-items:center; gap:3px;
+    font-family:'Georgia',serif;
+    transition:color 0.15s;
+  }
+  .tab-btn .icon { font-size:20px; }
+  .tab-btn.active { color:var(--red); }
+
+  /* ── PAGES ── */
+  .page { display:none; min-height:100vh; padding-bottom:80px; }
+  .page.active { display:block; }
+
+  /* ── NAVBAR ── */
+  .navbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px;
+    position:sticky; top:0; z-index:100;
+    background:linear-gradient(to bottom, rgba(10,10,10,0.98), transparent);
+  }
+  .nav-logo { font-size:20px; font-weight:900; color:var(--red); letter-spacing:-1px; }
+  .cat-filters { display:flex; gap:10px; overflow-x:auto; padding:0 18px 12px; scrollbar-width:none; }
+  .cat-filters::-webkit-scrollbar { display:none; }
+  .cat-btn {
+    background:var(--bg3); border:1px solid var(--border);
+    color:var(--muted); font-size:12px; border-radius:20px;
+    padding:5px 14px; cursor:pointer; white-space:nowrap;
+    font-family:'Georgia',serif; transition:all 0.15s;
+  }
+  .cat-btn.active { background:var(--red); border-color:var(--red); color:#fff; }
+
+  /* ── HERO ── */
+  .hero {
+    position:relative; height:380px; overflow:hidden;
+    border-radius:12px; margin:0 18px 28px;
+  }
+  .hero-bg {
+    position:absolute; inset:0;
+    background:linear-gradient(135deg,#0d1a2e 0%,#1a0d06 60%,#0a1a0f 100%);
+  }
+  .hero-deco {
+    position:absolute; right:-20px; top:0; bottom:0; width:55%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:100px; opacity:0.07; pointer-events:none;
+    overflow:hidden;
+  }
+  .hero-overlay {
+    position:absolute; inset:0;
+    background:linear-gradient(to top, var(--bg) 0%, transparent 55%);
+  }
+  .hero-content { position:absolute; bottom:28px; left:24px; right:24px; }
+  .hero-tag {
+    display:inline-block; background:var(--red); color:#fff;
+    font-size:10px; letter-spacing:2px; padding:3px 10px;
+    border-radius:3px; margin-bottom:10px;
+  }
+  .hero-title { font-size:38px; font-weight:700; color:#fff; line-height:1.1; margin-bottom:8px; text-shadow:0 2px 16px rgba(0,0,0,0.8); }
+  .hero-sub { font-size:13px; color:#ccc; line-height:1.6; margin-bottom:14px; }
+  .hero-meta { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:14px; }
+  .hero-actions { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn-white { background:#fff; color:#000; border:none; border-radius:5px; padding:9px 18px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Georgia',serif; }
+  .btn-ghost { background:rgba(120,120,120,0.35); color:#fff; border:none; border-radius:5px; padding:9px 18px; font-size:14px; cursor:pointer; font-family:'Georgia',serif; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom:32px; }
+  .section-hd {
+    display:flex; align-items:center; gap:8px;
+    padding:0 18px; margin-bottom:12px;
+  }
+  .section-dot { width:4px; height:18px; background:var(--red); border-radius:2px; }
+  .section-title { font-size:17px; font-weight:700; color:#fff; cursor:pointer; }
+  .section-edit { font-size:12px; color:var(--dim); cursor:pointer; }
+
+  /* ── CARD GRID ── */
+  .card-row {
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(140px,1fr));
+    gap:10px; padding:0 18px;
+  }
+  .card {
+    position:relative; border-radius:8px; overflow:hidden;
+    cursor:pointer; background:var(--bg3);
+    aspect-ratio:2/3;
+    transition:transform 0.2s;
+  }
+  .card:active { transform:scale(0.97); }
+  .card-emoji {
+    width:100%; height:100%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:48px;
+  }
+  .card-grad {
+    position:absolute; inset:0;
+    background:linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 55%);
+  }
+  .card-badge {
+    position:absolute; top:7px; left:7px;
+    background:var(--red); color:#fff;
+    font-size:9px; letter-spacing:1px;
+    padding:2px 6px; border-radius:3px;
+  }
+  .hot-badge {
+    position:absolute; top:7px; right:7px;
+    background:rgba(229,9,20,0.8); color:#fff;
+    font-size:9px; padding:2px 6px; border-radius:3px;
+  }
+  .card-info { position:absolute; bottom:8px; left:8px; right:8px; }
+  .card-name { font-size:12px; font-weight:700; color:#fff; line-height:1.3; margin-bottom:2px; }
+  .card-stars { font-size:10px; color:var(--muted); }
+  .add-card {
+    border-radius:8px; background:var(--bg3);
+    aspect-ratio:2/3; border:2px dashed var(--border);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:6px;
+    cursor:pointer; transition:border-color 0.2s;
+  }
+  .add-card:active { border-color:var(--red); }
+  .add-icon { font-size:24px; color:var(--dim); }
+  .add-lbl { font-size:10px; color:var(--dim); text-align:center; }
+
+  /* ── DAY PLANNER ── */
+  .day-page-hd {
+    padding:18px 18px 8px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .day-page-title { font-size:22px; font-weight:700; color:#fff; }
+  .btn-add-day {
+    background:var(--red); color:#fff; border:none;
+    border-radius:6px; padding:8px 16px; font-size:13px;
+    cursor:pointer; font-family:'Georgia',serif;
+  }
+  .day-tabs {
+    display:flex; gap:8px; overflow-x:auto;
+    padding:12px 18px; scrollbar-width:none;
+  }
+  .day-tabs::-webkit-scrollbar { display:none; }
+  .day-tab {
+    background:var(--bg3); border:1px solid var(--border);
+    color:var(--muted); font-size:12px; border-radius:8px;
+    padding:8px 16px; cursor:pointer; white-space:nowrap;
+    font-family:'Georgia',serif; transition:all 0.15s;
+    position:relative;
+  }
+  .day-tab.active { background:var(--red); border-color:var(--red); color:#fff; }
+  .day-content { padding:0 18px; }
+  .day-item {
+    background:var(--bg2); border-radius:10px;
+    padding:14px; margin-bottom:10px;
+    border-left:3px solid var(--red);
+    cursor:pointer; position:relative;
+  }
+  .day-item-time { font-size:11px; color:var(--red); font-weight:700; margin-bottom:4px; }
+  .day-item-name { font-size:15px; font-weight:700; color:#fff; margin-bottom:4px; }
+  .day-item-note { font-size:12px; color:var(--muted); line-height:1.5; }
+  .day-item-cat {
+    display:inline-block; background:var(--bg4);
+    color:var(--muted); font-size:10px;
+    padding:2px 8px; border-radius:10px; margin-top:6px;
+  }
+  .day-item-del {
+    position:absolute; top:10px; right:12px;
+    background:none; border:none; color:var(--dim);
+    font-size:16px; cursor:pointer;
+  }
+  .add-day-item {
+    background:var(--bg2); border-radius:10px;
+    padding:14px; border:2px dashed var(--border);
+    display:flex; align-items:center; gap:10px;
+    cursor:pointer; color:var(--dim); font-size:13px;
+    transition:border-color 0.2s;
+  }
+  .add-day-item:active { border-color:var(--red); }
+  .day-empty {
+    text-align:center; color:var(--dim);
+    font-size:14px; padding:40px 0;
+    line-height:1.8;
+  }
+
+  /* ── MODAL ── */
+  .modal-bg {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.88); z-index:600;
+    align-items:flex-end; justify-content:center;
+    padding:0;
+  }
+  .modal-bg.open { display:flex; }
+  .modal {
+    background:var(--bg2); border-radius:18px 18px 0 0;
+    width:100%; max-height:92vh; overflow-y:auto;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .modal-drag { width:36px; height:4px; background:var(--border); border-radius:2px; margin:12px auto 0; }
+  .modal-hero-emoji {
+    width:100%; height:160px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:72px;
+  }
+  .modal-body { padding:16px 20px 28px; }
+  .modal-title-row { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; }
+  .modal-name { font-size:22px; font-weight:700; color:#fff; }
+  .modal-close { background:var(--bg4); border:none; border-radius:50%; width:30px; height:30px; color:var(--muted); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .modal-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .modal-tag { background:var(--bg3); color:var(--muted); font-size:11px; padding:3px 10px; border-radius:20px; }
+  .modal-desc { font-size:14px; color:#ccc; line-height:1.7; margin-bottom:16px; }
+  .modal-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+  .modal-info-cell { background:var(--bg3); border-radius:8px; padding:10px 12px; }
+  .modal-info-lbl { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
+  .modal-info-val { font-size:13px; color:#fff; font-weight:600; }
+  .modal-actions { display:flex; gap:8px; }
+  .btn-edit-red { flex:1; background:var(--red); color:#fff; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Georgia',serif; }
+  .btn-add-to-day { flex:1; background:var(--bg3); color:#fff; border:1px solid var(--border); border-radius:8px; padding:12px; font-size:14px; cursor:pointer; font-family:'Georgia',serif; }
+
+  /* ── EDIT FORM MODAL ── */
+  .form-modal-bg {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.92); z-index:700;
+    align-items:flex-end;
+  }
+  .form-modal-bg.open { display:flex; }
+  .form-modal {
+    background:var(--bg2); border-radius:18px 18px 0 0;
+    width:100%; max-height:95vh; overflow-y:auto;
+    padding:20px 20px 40px;
+    padding-bottom:calc(40px + env(safe-area-inset-bottom));
+  }
+  .form-title { font-size:18px; font-weight:700; color:#fff; margin-bottom:18px; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
+  .field input, .field textarea, .field select {
+    width:100%; background:var(--bg4);
+    border:1px solid var(--border); border-radius:8px;
+    color:var(--text); font-size:15px;
+    padding:10px 12px; font-family:'Georgia',serif; outline:none;
+  }
+  .field input:focus, .field textarea:focus { border-color:var(--red); }
+  .field textarea { resize:vertical; min-height:80px; }
+  .emoji-picker { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .emoji-opt { font-size:24px; cursor:pointer; padding:5px; border-radius:8px; transition:background 0.1s; }
+  .emoji-opt.sel { background:var(--bg4); }
+  .form-actions { display:flex; gap:8px; margin-top:20px; }
+  .btn-save { flex:2; background:var(--red); color:#fff; border:none; border-radius:8px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; font-family:'Georgia',serif; }
+  .btn-cancel2 { flex:1; background:var(--bg3); color:var(--muted); border:none; border-radius:8px; padding:13px; font-size:15px; cursor:pointer; font-family:'Georgia',serif; }
+  .btn-del { background:#3a1a1a; color:var(--red); border:1px solid #5a2020; border-radius:8px; padding:13px 16px; font-size:15px; cursor:pointer; font-family:'Georgia',serif; }
+
+  /* ── DAY ITEM FORM ── */
+  .day-form-modal-bg {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.92); z-index:700;
+    align-items:flex-end;
+  }
+  .day-form-modal-bg.open { display:flex; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width:0; height:0; }
+
+  /* ── DESKTOP wider cards ── */
+  @media(min-width:600px) {
+    .card-row { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+    .hero { height:420px; }
+    .modal-bg, .form-modal-bg, .day-form-modal-bg { align-items:center; }
+    .modal { border-radius:18px; max-width:560px; max-height:88vh; }
+    .form-modal { border-radius:18px; max-width:520px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════ PAGE: 手帳 ════════════════ -->
+<div class="page active" id="page-journal">
+  <div class="navbar">
+    <div class="nav-logo">✈ 福岡手帳</div>
+    <button onclick="openHeroEdit()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'Georgia',serif;">⚙️ 設定</button>
+  </div>
+
+  <div class="cat-filters">
+    <button class="cat-btn active" onclick="filterAll(this)">全部</button>
+    <button class="cat-btn" onclick="filterCat('景點',this)">⛩️ 景點</button>
+    <button class="cat-btn" onclick="filterCat('美食',this)">🍜 美食</button>
+    <button class="cat-btn" onclick="filterCat('住宿',this)">🏨 住宿</button>
+    <button class="cat-btn" onclick="filterCat('體驗',this)">🎋 體驗</button>
+    <button class="cat-btn" onclick="filterCat('購物',this)">🛍️ 購物</button>
+  </div>
+
+  <div class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-deco">🏯</div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-tag" id="hero-tag">九州之旅</div>
+      <div class="hero-title" id="hero-title">🇯🇵 福岡</div>
+      <div class="hero-sub" id="hero-sub">日本最西端的大都市，博多拉麵的故鄉。屋台文化、太宰府天滿宮、百道濱的海風——福岡是個會讓人想一去再去的城市。</div>
+      <div class="hero-meta">
+        <span id="hero-date">📅 我的旅程</span>
+        <span>📍 九州・福岡縣</span>
+      </div>
+      <div class="hero-actions">
+        <button class="btn-white" onclick="openHeroEdit()">✏️ 編輯</button>
+        <button class="btn-ghost" onclick="switchTab('day')">📅 查看行程</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sections-container"></div>
+
+  <div style="padding:0 18px 20px;">
+    <button onclick="addSection()" style="background:var(--bg2);border:2px dashed var(--border);color:var(--dim);border-radius:10px;width:100%;padding:15px;font-size:13px;cursor:pointer;font-family:'Georgia',serif;">＋ 新增分類</button>
+  </div>
+</div>
+
+<!-- ════════════════ PAGE: 行程 ════════════════ -->
+<div class="page" id="page-day">
+  <div class="navbar">
+    <div class="nav-logo">📅 行程規劃</div>
+    <button class="btn-add-day" onclick="addDay()">＋ 新增天</button>
+  </div>
+  <div class="day-tabs" id="day-tabs"></div>
+  <div class="day-content" id="day-content"></div>
+</div>
+
+<!-- ════════════════ TAB BAR ════════════════ -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tab-journal" onclick="switchTab('journal')">
+    <span class="icon">📖</span>手帳
+  </button>
+  <button class="tab-btn" id="tab-day" onclick="switchTab('day')">
+    <span class="icon">🗓</span>行程
+  </button>
+</div>
+
+<!-- ════════════════ MODALS ════════════════ -->
+
+<!-- View Modal -->
+<div class="modal-bg" id="modal-bg" onclick="closeModalBg(event)">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-hero-emoji" id="m-emoji" style="background:#0d1a2e;"></div>
+    <div class="modal-body">
+      <div class="modal-title-row">
+        <div class="modal-name" id="m-name"></div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-tags" id="m-tags"></div>
+      <div class="modal-desc" id="m-desc"></div>
+      <div class="modal-info-grid" id="m-info"></div>
+      <div class="modal-actions">
+        <button class="btn-add-to-day" onclick="addCurrentToDay()">📅 加入行程</button>
+        <button class="btn-edit-red" id="m-edit-btn">✏️ 編輯</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Entry Edit Form -->
+<div class="form-modal-bg" id="form-modal-bg">
+  <div class="form-modal">
+    <div class="form-title" id="form-title">✏️ 編輯地點</div>
+    <div class="field"><label>名稱</label><input id="ef-name" type="text" placeholder="地點名稱"></div>
+    <div class="field"><label>分類</label>
+      <select id="ef-cat"><option>景點</option><option>美食</option><option>住宿</option><option>體驗</option><option>購物</option><option>其他</option></select>
+    </div>
+    <div class="field"><label>圖示</label><div class="emoji-picker" id="emoji-picker"></div></div>
+    <div class="field"><label>描述 / 旅遊筆記</label><textarea id="ef-desc" placeholder="寫下心得、推薦理由、踩雷紀錄..."></textarea></div>
+    <div class="field"><label>地址</label><input id="ef-addr" placeholder="例：福岡市博多區..."></div>
+    <div class="field"><label>開放時間</label><input id="ef-hours" placeholder="例：09:00 – 17:00"></div>
+    <div class="field"><label>費用</label><input id="ef-price" placeholder="例：免費 / ¥800"></div>
+    <div class="field"><label>我的評分</label>
+      <select id="ef-rating">
+        <option>⭐⭐⭐⭐⭐ 超推薦</option><option>⭐⭐⭐⭐ 很推薦</option>
+        <option>⭐⭐⭐ 還不錯</option><option>⭐⭐ 普通</option><option>⭐ 不推薦</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>封面照片（選填）</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div id="ef-img-preview" style="width:72px;height:72px;border-radius:8px;background:var(--bg4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;flex-shrink:0;">🖼️</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label for="ef-img-file" style="background:var(--bg3);color:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;text-align:center;">📷 從相簿選取</label>
+          <input type="file" id="ef-img-file" accept="image/*" style="display:none;">
+          <button type="button" onclick="clearEntryImg()" style="background:none;border:1px solid #5a2020;color:var(--red);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:'Georgia',serif;">✕ 移除照片</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel2" onclick="closeFormModal()">取消</button>
+      <button class="btn-del" id="btn-del" onclick="deleteEntry()">刪除</button>
+      <button class="btn-save" onclick="saveEntry()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Day Item Form -->
+<div class="day-form-modal-bg" id="day-form-bg">
+  <div class="form-modal">
+    <div class="form-title" id="day-form-title">＋ 新增行程項目</div>
+    <div class="field"><label>時間</label><input id="df-time" placeholder="例：09:00 / 早上 / 午餐後"></div>
+    <div class="field"><label>地點 / 活動名稱</label><input id="df-name" placeholder="例：太宰府天滿宮"></div>
+    <div class="field"><label>分類</label>
+      <select id="df-cat"><option>景點</option><option>美食</option><option>住宿</option><option>體驗</option><option>購物</option><option>交通</option><option>其他</option></select>
+    </div>
+    <div class="field"><label>備註</label><textarea id="df-note" placeholder="提醒、注意事項、地址..."></textarea></div>
+    <div class="form-actions">
+      <button class="btn-cancel2" onclick="closeDayForm()">取消</button>
+      <button class="btn-del" id="df-del-btn" onclick="deleteDayItem()">刪除</button>
+      <button class="btn-save" onclick="saveDayItem()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── IMAGE UPLOAD HANDLING ──
+let currentEntryImg = '';
+
+function clearEntryImg(){
+  currentEntryImg='';
+  const prev=document.getElementById('ef-img-preview');
+  prev.style.backgroundImage='';
+  prev.style.backgroundSize='';
+  prev.innerHTML='🖼️';
+  document.getElementById('ef-img-file').value='';
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('ef-img-file').addEventListener('change',function(){
+    const file=this.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      currentEntryImg=ev.target.result;
+      const prev=document.getElementById('ef-img-preview');
+      prev.style.backgroundImage=`url('${currentEntryImg}')`;
+      prev.style.backgroundSize='cover';
+      prev.style.backgroundPosition='center';
+      prev.innerHTML='';
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+const EMOJIS=['🍜','🍱','🐟','🍣','🍢','🐂','⛩️','🏯','🌸','🌊','🛕','🎋','🎌','🐉','🍶','☕','🏨','🛍️','🎡','🚃','🌅','🌃','🗺️','🍻','🧧','🎎','🥟','🦑','🍡','🍧','🏖️','🌋'];
+
+const DEFAULT_DATA = {
+  hero:{title:'🇯🇵 福岡',sub:'日本最西端的大都市，博多拉麵的故鄉。屋台文化、太宰府天滿宮、百道濱的海風——福岡是個會讓人想一去再去的城市。',tag:'九州之旅',date:''},
+  sections:[
+    {id:'s1',title:'⛩️ 必去景點',entries:[
+      {id:'e1',name:'太宰府天滿宮',cat:'景點',emoji:'⛩️',desc:'學問之神菅原道真長眠於此的千年古社，每年吸引超過 200 萬人參拜。參道上的梅ヶ枝餅超好吃，必買！',addr:'福岡縣太宰府市宰府 4-7-1',hours:'06:30 – 19:00',price:'免費',rating:'⭐⭐⭐⭐⭐ 超推薦',img:''},
+      {id:'e2',name:'福岡城跡・舞鶴公園',cat:'景點',emoji:'🏯',desc:'江戶時代福岡藩的城堡遺址，春天是賞櫻名所，約 1,000 株櫻花。可從天守台眺望博多灣。',addr:'福岡市中央區城內 1-4',hours:'全日開放',price:'免費',rating:'⭐⭐⭐⭐ 很推薦',img:''},
+      {id:'e3',name:'海之中道海濱公園',cat:'景點',emoji:'🌊',desc:'全長 5.8 公里的半島公園，春有油菜花、夏有向日葵。有海豚表演和動物區，很適合帶小孩。',addr:'福岡市東區西戸崎 18-25',hours:'09:30 – 17:30',price:'¥450',rating:'⭐⭐⭐⭐ 很推薦',img:''},
+    ]},
+    {id:'s2',title:'🍜 博多美食',entries:[
+      {id:'e4',name:'一風堂（大名本店）',cat:'美食',emoji:'🍜',desc:'博多豚骨拉麵代表！白丸清爽、赤丸辛辣。記得加點替玉（加麵），分量小一碗剛好。',addr:'福岡市中央區大名 1-3-2',hours:'11:00 – 翌日 01:00',price:'¥900–¥1,200',rating:'⭐⭐⭐⭐⭐ 超推薦',img:''},
+      {id:'e5',name:'中洲屋台',cat:'美食',emoji:'🍢',desc:'那珂川畔的屋台街，是福岡最特有的飲食文化。每晚約 18 點開始，拉麵、天婦羅、啤酒，和老闆聊天超有趣。',addr:'福岡市博多區中洲（那珂川沿岸）',hours:'18:00 – 凌晨',price:'約¥1,500起',rating:'⭐⭐⭐⭐⭐ 超推薦',img:''},
+      {id:'e6',name:'博多もつ鍋（牛雜鍋）',cat:'美食',emoji:'🐂',desc:'Q 彈牛腸在昆布高湯燉得軟爛，加大量韭菜和豆腐，超鮮甜！最後加入強棒麵收尾。',addr:'各處皆有，推薦「楽天地」',hours:'17:00 – 23:00',price:'¥2,500/人起',rating:'⭐⭐⭐⭐⭐ 超推薦',img:''},
+      {id:'e7',name:'梅ヶ枝餅',cat:'美食',emoji:'🍡',desc:'太宰府天滿宮參道限定！外皮微焦香脆，裡面是紅豆泥，熱熱的吃最好。推薦「かさの家」現烤。',addr:'太宰府天滿宮參道沿線',hours:'依各店而異',price:'¥150/個',rating:'⭐⭐⭐⭐⭐ 超推薦',img:''},
+    ]},
+    {id:'s3',title:'🛍️ 購物',entries:[
+      {id:'e8',name:'キャナルシティ博多',cat:'購物',emoji:'🛍️',desc:'超大型複合商場，有運河從中間流過。Nike、Uniqlo、HMV、LOFT 應有盡有。',addr:'福岡市博多區住吉 1-2-22',hours:'10:00 – 21:00',price:'免費進入',rating:'⭐⭐⭐⭐ 很推薦',img:''},
+      {id:'e9',name:'天神地下街',cat:'購物',emoji:'🎌',desc:'150 家店的老牌地下街，雨天逛街最方便。藥妝、麵包、咖啡廳一應俱全。',addr:'福岡市中央區天神 2 丁目周邊',hours:'10:00 – 20:00',price:'免費進入',rating:'⭐⭐⭐⭐ 很推薦',img:''},
+    ]},
+    {id:'s4',title:'🎋 文化體驗',entries:[
+      {id:'e10',name:'博多祇園山笠',cat:'體驗',emoji:'🎋',desc:'每年 7 月舉辦的博多三大祭典！巨大山笠彩車超壯觀。凌晨 4:59「追山」是最高潮。',addr:'博多區各地',hours:'7月1日～15日',price:'免費觀看',rating:'⭐⭐⭐⭐⭐ 超推薦',img:''},
+    ]},
+  ],
+  days:[
+    {id:'d1',title:'Day 1',items:[
+      {id:'di1',time:'09:00',name:'太宰府天滿宮',cat:'景點',note:'搭西鐵電車到太宰府站，步行 5 分鐘。記得買梅ヶ枝餅！'},
+      {id:'di2',time:'13:00',name:'Canal City 午餐',cat:'美食',note:'逛商場順便解決午餐'},
+      {id:'di3',time:'18:00',name:'中洲屋台',cat:'美食',note:'晚上必去！坐在屋台喝啤酒'},
+    ]},
+    {id:'d2',title:'Day 2',items:[
+      {id:'di4',time:'10:00',name:'福岡城跡・舞鶴公園',cat:'景點',note:'早上人少好拍照'},
+      {id:'di5',time:'12:00',name:'一風堂拉麵',cat:'美食',note:'白丸+半熟蛋+替玉'},
+    ]},
+  ]
+};
+
+// ── STATE ──
+let data = loadData();
+let activeFilter = null;
+let activeDayId = null;
+let editingSec = null;
+let editingEntry = null;
+let editingDayItem = null;
+let editingDayId = null;
+let selectedEmoji = '📍';
+let viewingEntry = null;
+let viewingSec = null;
+
+function loadData(){
+  try{
+    const s=localStorage.getItem('fukuoka-v2');
+    return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+  }catch(e){ return JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+}
+function save(){ localStorage.setItem('fukuoka-v2', JSON.stringify(data)); }
+function genId(){ return 'x'+Math.random().toString(36).slice(2,9); }
+
+// ── TABS ──
+function switchTab(tab){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='day') renderDayPage();
+}
+
+// ── JOURNAL ──
+function filterAll(btn){
+  activeFilter=null;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderJournal();
+}
+function filterCat(cat,btn){
+  activeFilter=cat;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderJournal();
+}
+
+function renderJournal(){
+  const c=document.getElementById('sections-container');
+  c.innerHTML='';
+  data.sections.forEach(sec=>{
+    let entries=sec.entries;
+    if(activeFilter) entries=entries.filter(e=>e.cat===activeFilter);
+    const div=document.createElement('div');
+    div.className='section';
+    div.innerHTML=`
+      <div class="section-hd">
+        <div class="section-dot"></div>
+        <div class="section-title" onclick="editSection('${sec.id}')">${sec.title}</div>
+        <div class="section-edit" onclick="editSection('${sec.id}')">✏️</div>
+      </div>
+      <div class="card-row" id="row-${sec.id}"></div>`;
+    c.appendChild(div);
+    const row=div.querySelector(`#row-${sec.id}`);
+    entries.forEach(e=>{
+      const card=document.createElement('div');
+      card.className='card';
+      card.onclick=()=>openModal(e,sec.id);
+      const hot=e.rating.includes('超推薦');
+      const imgStyle = e.img
+        ? `background:url('${e.img}') center/cover no-repeat;`
+        : `background:${catBg(e.cat)};`;
+      card.innerHTML=`
+        <div class="card-emoji" style="${imgStyle}">${e.img?'':e.emoji}</div>
+        <div class="card-grad"></div>
+        <div class="card-badge">${e.cat}</div>
+        ${hot?'<div class="hot-badge">🔥 必去</div>':''}
+        <div class="card-info">
+          <div class="card-name">${e.name}</div>
+          <div class="card-stars">${e.rating.split(' ')[0]}</div>
+        </div>`;
+      row.appendChild(card);
+    });
+    const add=document.createElement('div');
+    add.className='add-card';
+    add.innerHTML=`<div class="add-icon">＋</div><div class="add-lbl">新增地點</div>`;
+    add.onclick=()=>openNewEntry(sec.id);
+    row.appendChild(add);
+  });
+}
+
+function catBg(cat){
+  return{景點:'#0d1a2e',美食:'#1a0d06',住宿:'#0a1a0f',體驗:'#1a0a2e',購物:'#1a1710',其他:'#1a1a1a'}[cat]||'#1a1a1a';
+}
+
+// ── MODAL ──
+function openModal(entry,secId){
+  viewingEntry={...entry}; viewingSec=secId;
+  document.getElementById('m-emoji').textContent=entry.emoji;
+  document.getElementById('m-emoji').style.background=catBg(entry.cat);
+  document.getElementById('m-name').textContent=entry.name;
+  document.getElementById('m-tags').innerHTML=[entry.cat,entry.rating].map(t=>`<span class="modal-tag">${t}</span>`).join('');
+  document.getElementById('m-desc').textContent=entry.desc||'（尚無描述）';
+  document.getElementById('m-info').innerHTML=[
+    {l:'地址',v:entry.addr||'—'},{l:'時間',v:entry.hours||'—'},{l:'費用',v:entry.price||'—'},{l:'評分',v:entry.rating.split(' ')[0]}
+  ].map(i=>`<div class="modal-info-cell"><div class="modal-info-lbl">${i.l}</div><div class="modal-info-val">${i.v}</div></div>`).join('');
+  document.getElementById('m-edit-btn').onclick=()=>{closeModal();openEditEntry(entry,secId);};
+  document.getElementById('modal-bg').classList.add('open');
+}
+function addCurrentToDay(){
+  if(!viewingEntry) return;
+  closeModal();
+  const dayId=pickDay();
+  if(!dayId) return;
+  const day=data.days.find(d=>d.id===dayId);
+  day.items.push({id:genId(),time:'',name:viewingEntry.name,cat:viewingEntry.cat,note:viewingEntry.addr||''});
+  save();
+  alert(`已加入 ${day.title}！`);
+}
+function pickDay(){
+  if(!data.days.length){ if(confirm('尚無行程，是否新增 Day 1？')){ addDay(); } return null; }
+  const opts=data.days.map((d,i)=>`${i+1}. ${d.title}`).join('\n');
+  const inp=prompt(`加入哪一天？輸入數字：\n${opts}`);
+  const idx=parseInt(inp)-1;
+  if(isNaN(idx)||idx<0||idx>=data.days.length) return null;
+  return data.days[idx].id;
+}
+function closeModalBg(e){ if(e.target===document.getElementById('modal-bg')) closeModal(); }
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+
+// ── ENTRY FORM ──
+function openNewEntry(secId){
+  editingSec=secId; editingEntry=null; selectedEmoji='📍';
+  document.getElementById('form-title').textContent='＋ 新增地點';
+  ['ef-name','ef-desc','ef-addr','ef-hours','ef-price'].forEach(id=>document.getElementById(id).value='');
+  // reset image
+  document.getElementById('ef-img-file').value='';
+  document.getElementById('ef-img-preview').innerHTML='🖼️';
+  document.getElementById('ef-img-preview').style.backgroundImage='';
+  document.getElementById('ef-img-preview').style.backgroundSize='';
+  currentEntryImg='';
+  document.getElementById('ef-cat').value='景點';
+  document.getElementById('ef-rating').value='⭐⭐⭐⭐⭐ 超推薦';
+  document.getElementById('btn-del').style.display='none';
+  renderEmojiPicker();
+  document.getElementById('form-modal-bg').classList.add('open');
+}
+function openEditEntry(entry,secId){
+  editingSec=secId; editingEntry={...entry}; selectedEmoji=entry.emoji||'📍';
+  document.getElementById('form-title').textContent='✏️ 編輯地點';
+  document.getElementById('ef-name').value=entry.name;
+  document.getElementById('ef-cat').value=entry.cat;
+  document.getElementById('ef-desc').value=entry.desc;
+  document.getElementById('ef-addr').value=entry.addr;
+  document.getElementById('ef-hours').value=entry.hours;
+  document.getElementById('ef-price').value=entry.price;
+  document.getElementById('ef-rating').value=entry.rating;
+  document.getElementById('ef-img-file').value='';
+  currentEntryImg = entry.img||'';
+  const prev = document.getElementById('ef-img-preview');
+  if(currentEntryImg){
+    prev.style.backgroundImage=`url('${currentEntryImg}')`;
+    prev.style.backgroundSize='cover';
+    prev.style.backgroundPosition='center';
+    prev.innerHTML='';
+  } else {
+    prev.style.backgroundImage='';
+    prev.innerHTML='🖼️';
+  }
+  document.getElementById('btn-del').style.display='block';
+  renderEmojiPicker();
+  document.getElementById('form-modal-bg').classList.add('open');
+}
+function renderEmojiPicker(){
+  document.getElementById('emoji-picker').innerHTML=EMOJIS.map(e=>`<span class="emoji-opt${e===selectedEmoji?' sel':''}" onclick="selectEmoji('${e}')">${e}</span>`).join('');
+}
+function selectEmoji(e){ selectedEmoji=e; renderEmojiPicker(); }
+function closeFormModal(){ document.getElementById('form-modal-bg').classList.remove('open'); }
+function saveEntry(){
+  const sec=data.sections.find(s=>s.id===editingSec);
+  const ne={
+    id:editingEntry?editingEntry.id:genId(),
+    name:document.getElementById('ef-name').value||'新地點',
+    cat:document.getElementById('ef-cat').value,
+    emoji:selectedEmoji,
+    desc:document.getElementById('ef-desc').value,
+    addr:document.getElementById('ef-addr').value,
+    hours:document.getElementById('ef-hours').value,
+    price:document.getElementById('ef-price').value,
+    rating:document.getElementById('ef-rating').value,
+    img:currentEntryImg,
+  };
+  if(editingEntry){ const i=sec.entries.findIndex(e=>e.id===editingEntry.id); if(i>-1) sec.entries[i]=ne; }
+  else sec.entries.push(ne);
+  save(); closeFormModal(); renderJournal();
+}
+function deleteEntry(){
+  if(!editingEntry) return;
+  if(!confirm('確定刪除？')) return;
+  const sec=data.sections.find(s=>s.id===editingSec);
+  sec.entries=sec.entries.filter(e=>e.id!==editingEntry.id);
+  save(); closeFormModal(); renderJournal();
+}
+
+// ── SECTIONS ──
+function addSection(){
+  const name=prompt('輸入新分類名稱（可加 emoji）：\n例：🚃 交通 / 💡 小貼士');
+  if(!name) return;
+  data.sections.push({id:genId(),title:name,entries:[]});
+  save(); renderJournal();
+}
+function editSection(secId){
+  const sec=data.sections.find(s=>s.id===secId);
+  const name=prompt('修改分類名稱：',sec.title);
+  if(name===null) return;
+  if(name===''){
+    if(confirm('確定要刪除這個分類？')) data.sections=data.sections.filter(s=>s.id!==secId);
+  } else sec.title=name;
+  save(); renderJournal();
+}
+
+// ── HERO EDIT ──
+function openHeroEdit(){
+  const t=prompt('封面標題：',data.hero.title); if(t===null) return;
+  const s=prompt('封面描述：',data.hero.sub); if(s===null) return;
+  const tag=prompt('標籤：',data.hero.tag); if(tag===null) return;
+  const date=prompt('旅遊日期（顯示在封面）：',data.hero.date||''); if(date===null) return;
+  data.hero={title:t,sub:s,tag,date};
+  document.getElementById('hero-title').textContent=t;
+  document.getElementById('hero-sub').textContent=s;
+  document.getElementById('hero-tag').textContent=tag;
+  document.getElementById('hero-date').textContent='📅 '+(date||'我的旅程');
+  save();
+}
+
+// ── DAY PLANNER ──
+function renderDayPage(){
+  const tabs=document.getElementById('day-tabs');
+  const content=document.getElementById('day-content');
+  if(!data.days.length){
+    tabs.innerHTML='';
+    content.innerHTML=`<div class="day-empty">📭 還沒有行程<br><br>點上方「＋ 新增天」開始規劃！</div>`;
+    return;
+  }
+  if(!activeDayId||!data.days.find(d=>d.id===activeDayId)) activeDayId=data.days[0].id;
+  tabs.innerHTML=data.days.map(d=>`
+    <div class="day-tab${d.id===activeDayId?' active':''}" onclick="selectDay('${d.id}')">
+      ${d.title}
+      <span style="margin-left:6px;font-size:10px;opacity:0.6;" onclick="event.stopPropagation();editDayTitle('${d.id}')">✏️</span>
+    </div>`).join('');
+  const day=data.days.find(d=>d.id===activeDayId);
+  content.innerHTML='';
+  if(!day.items.length){
+    const empty=document.createElement('div');
+    empty.className='day-empty';
+    empty.textContent='這天還沒有行程，點下方加入！';
+    content.appendChild(empty);
+  } else {
+    day.items.forEach(item=>{
+      const div=document.createElement('div');
+      div.className='day-item';
+      div.innerHTML=`
+        ${item.time?`<div class="day-item-time">🕐 ${item.time}</div>`:''}
+        <div class="day-item-name">${item.name}</div>
+        ${item.note?`<div class="day-item-note">${item.note}</div>`:''}
+        <span class="day-item-cat">${item.cat}</span>
+        <button class="day-item-del" onclick="event.stopPropagation();openEditDayItem('${item.id}','${day.id}')">✏️</button>`;
+      div.onclick=()=>openEditDayItem(item.id,day.id);
+      content.appendChild(div);
+    });
+  }
+  const addBtn=document.createElement('div');
+  addBtn.className='add-day-item';
+  addBtn.innerHTML='<span style="font-size:20px;">＋</span> 新增行程項目';
+  addBtn.onclick=()=>openNewDayItem(activeDayId);
+  content.appendChild(addBtn);
+}
+
+function selectDay(id){ activeDayId=id; renderDayPage(); }
+function addDay(){
+  const n=data.days.length+1;
+  const title=prompt('新增行程天數名稱：',`Day ${n}`);
+  if(!title) return;
+  const d={id:genId(),title,items:[]};
+  data.days.push(d);
+  activeDayId=d.id;
+  save(); renderDayPage();
+}
+function editDayTitle(dayId){
+  const day=data.days.find(d=>d.id===dayId);
+  const name=prompt('修改名稱：',day.title);
+  if(name===null) return;
+  if(name===''){
+    if(confirm(`確定刪除「${day.title}」？`)) data.days=data.days.filter(d=>d.id!==dayId);
+    if(activeDayId===dayId) activeDayId=data.days[0]?.id||null;
+  } else day.title=name;
+  save(); renderDayPage();
+}
+
+// ── DAY ITEM FORM ──
+function openNewDayItem(dayId){
+  editingDayId=dayId; editingDayItem=null;
+  document.getElementById('day-form-title').textContent='＋ 新增行程項目';
+  ['df-time','df-name','df-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('df-cat').value='景點';
+  document.getElementById('df-del-btn').style.display='none';
+  document.getElementById('day-form-bg').classList.add('open');
+}
+function openEditDayItem(itemId,dayId){
+  editingDayId=dayId;
+  const day=data.days.find(d=>d.id===dayId);
+  const item=day.items.find(i=>i.id===itemId);
+  editingDayItem={...item};
+  document.getElementById('day-form-title').textContent='✏️ 編輯行程項目';
+  document.getElementById('df-time').value=item.time;
+  document.getElementById('df-name').value=item.name;
+  document.getElementById('df-cat').value=item.cat;
+  document.getElementById('df-note').value=item.note;
+  document.getElementById('df-del-btn').style.display='block';
+  document.getElementById('day-form-bg').classList.add('open');
+}
+function closeDayForm(){ document.getElementById('day-form-bg').classList.remove('open'); }
+function saveDayItem(){
+  const day=data.days.find(d=>d.id===editingDayId);
+  const ne={
+    id:editingDayItem?editingDayItem.id:genId(),
+    time:document.getElementById('df-time').value,
+    name:document.getElementById('df-name').value||'新項目',
+    cat:document.getElementById('df-cat').value,
+    note:document.getElementById('df-note').value,
+  };
+  if(editingDayItem){ const i=day.items.findIndex(x=>x.id===editingDayItem.id); if(i>-1) day.items[i]=ne; }
+  else day.items.push(ne);
+  save(); closeDayForm(); renderDayPage();
+}
+function deleteDayItem(){
+  if(!editingDayItem) return;
+  if(!confirm('確定刪除？')) return;
+  const day=data.days.find(d=>d.id===editingDayId);
+  day.items=day.items.filter(i=>i.id!==editingDayItem.id);
+  save(); closeDayForm(); renderDayPage();
+}
+
+// ── INIT ──
+renderJournal();
+// Apply saved hero
+const h=data.hero;
+document.getElementById('hero-title').textContent=h.title;
+document.getElementById('hero-sub').textContent=h.sub;
+document.getElementById('hero-tag').textContent=h.tag;
+document.getElementById('hero-date').textContent='📅 '+(h.date||'我的旅程');
+</script>
+</body>
+</html>

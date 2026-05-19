@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<link rel="manifest" href="manifest.json">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('PWA Service Worker 註冊成功！', reg))
+        .catch(err => console.log('註冊失敗：', err));
+    });
+  }
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="旅遊手帳">
+<title>旅遊手帳</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --red: #e50914;
+    --bg: #141414;
+  }
+
+  html, body {
+    height:100%;
+    background:var(--bg);
+    color:#fff;
+    font-family:'Noto Serif TC', 'Georgia', serif;
+    overflow:hidden;
+  }
+
+  /* ── BACKGROUND ── */
+  .bg-layer {
+    position:fixed; inset:0; z-index:0;
+    background: radial-gradient(ellipse at 20% 50%, #1a0a06 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, #06101a 0%, transparent 60%),
+                radial-gradient(ellipse at 60% 80%, #0a1206 0%, transparent 50%),
+                #0a0a0a;
+  }
+  .bg-pattern {
+    position:fixed; inset:0; z-index:0;
+    background-image: repeating-linear-gradient(
+      0deg, transparent, transparent 60px,
+      rgba(255,255,255,0.012) 60px, rgba(255,255,255,0.012) 61px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 60px,
+      rgba(255,255,255,0.012) 60px, rgba(255,255,255,0.012) 61px
+    );
+  }
+
+  /* ── LOGO ── */
+  .logo {
+    position:fixed; top:32px; left:50%;
+    transform:translateX(-50%);
+    z-index:10;
+    font-size:15px; letter-spacing:6px;
+    color:rgba(255,255,255,0.35);
+    text-transform:uppercase;
+    font-weight:400;
+  }
+  .logo span { color:var(--red); font-weight:900; font-size:18px; letter-spacing:2px; }
+
+  /* ── MAIN ── */
+  .main {
+    position:relative; z-index:5;
+    height:100vh;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    padding:0 24px;
+  }
+
+  .heading {
+    font-size:clamp(22px, 5vw, 32px);
+    font-weight:400;
+    color:rgba(255,255,255,0.75);
+    letter-spacing:2px;
+    margin-bottom:48px;
+    text-align:center;
+  }
+
+  /* ── PROFILES ── */
+  .profiles {
+    display:flex;
+    gap:clamp(20px, 4vw, 40px);
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom:56px;
+  }
+
+  .profile {
+    display:flex; flex-direction:column;
+    align-items:center; gap:14px;
+    cursor:pointer;
+  }
+
+  .avatar-wrap {
+    position:relative;
+    width:clamp(100px, 18vw, 140px);
+    height:clamp(100px, 18vw, 140px);
+  }
+
+  .avatar {
+    width:100%; height:100%;
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(44px, 8vw, 64px);
+    border:3px solid transparent;
+    transition:border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    position:relative;
+    overflow:hidden;
+    cursor:pointer;
+  }
+  .avatar::before {
+    content:'';
+    position:absolute; inset:0;
+    background:inherit;
+    filter:brightness(0.7);
+    z-index:0;
+  }
+  .avatar span { position:relative; z-index:1; }
+
+  .profile:hover .avatar,
+  .profile:focus .avatar {
+    border-color:#fff;
+    transform:scale(1.08);
+    box-shadow:0 8px 32px rgba(0,0,0,0.6);
+  }
+
+  .avatar-shine {
+    position:absolute; inset:0;
+    background:linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+    border-radius:6px;
+    z-index:2; pointer-events:none;
+  }
+
+  .profile-name {
+    font-size:14px;
+    color:rgba(255,255,255,0.5);
+    letter-spacing:1px;
+    transition:color 0.2s;
+    text-align:center;
+  }
+  .profile:hover .profile-name { color:#fff; }
+
+  /* ── MANAGE BTN ── */
+  .manage-btn {
+    background:none;
+    border:1px solid rgba(255,255,255,0.25);
+    color:rgba(255,255,255,0.5);
+    padding:10px 28px;
+    font-size:13px; letter-spacing:2px;
+    border-radius:3px;
+    cursor:pointer;
+    font-family:'Noto Serif TC','Georgia',serif;
+    transition:all 0.2s;
+  }
+  .manage-btn:hover {
+    border-color:#fff;
+    color:#fff;
+    background:rgba(255,255,255,0.08);
+  }
+
+  /* ── CLICK ANIMATION ── */
+  @keyframes zoomIn {
+    0%   { opacity:1; transform:scale(1); }
+    60%  { opacity:1; transform:scale(1.15); }
+    100% { opacity:0; transform:scale(3); }
+  }
+  .zooming {
+    animation: zoomIn 0.55s ease-in forwards;
+  }
+
+  /* ── TRANSITION OVERLAY ── */
+  .overlay {
+    position:fixed; inset:0; z-index:999;
+    background:#000;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.4s ease;
+  }
+  .overlay.fade-in { opacity:1; pointer-events:all; }
+
+  /* ── EDIT MODE ── */
+  .edit-icon {
+    position:absolute; inset:0;
+    background:rgba(0,0,0,0.65);
+    border-radius:6px;
+    display:none;
+    align-items:center; justify-content:center;
+    font-size:28px; z-index:3;
+  }
+  .edit-mode .edit-icon { display:flex; }
+  .edit-mode .avatar { border-color:rgba(255,255,255,0.3) !important; }
+  .edit-mode .heading-text { opacity:0.4; }
+
+  /* ── MODAL (edit profile) ── */
+  .modal-bg {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.85); z-index:200;
+    align-items:center; justify-content:center; padding:24px;
+  }
+  .modal-bg.open { display:flex; }
+  .modal {
+    background:#1f1f1f;
+    border-radius:8px;
+    width:100%; max-width:420px;
+    padding:32px 28px;
+    position:relative;
+  }
+  .modal h3 {
+    font-size:20px; font-weight:700; color:#fff;
+    margin-bottom:6px; letter-spacing:1px;
+  }
+  .modal p { font-size:13px; color:#888; margin-bottom:24px; }
+  .modal-avatar-preview {
+    width:80px; height:80px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:40px; margin:0 auto 20px;
+    border:2px solid rgba(255,255,255,0.3);
+    background-size:cover; background-position:center; background-repeat:no-repeat;
+  }
+  .emoji-grid {
+    display:grid; grid-template-columns:repeat(6,1fr);
+    gap:8px; margin-bottom:20px;
+    max-height:180px; overflow-y:auto;
+  }
+  .emoji-opt {
+    font-size:26px; cursor:pointer;
+    padding:6px; border-radius:6px;
+    text-align:center;
+    border:2px solid transparent;
+    transition:background 0.1s, border-color 0.1s;
+  }
+  .emoji-opt.sel { background:#333; border-color:rgba(255,255,255,0.4); }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:11px; color:#888; letter-spacing:1px; margin-bottom:6px; }
+  .field input {
+    width:100%; background:#2a2a2a; border:1px solid #444;
+    border-radius:4px; color:#fff; font-size:15px;
+    padding:10px 12px; font-family:'Noto Serif TC','Georgia',serif; outline:none;
+  }
+  .field input:focus { border-color:#fff; }
+  .color-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .color-swatch {
+    width:36px; height:36px; border-radius:6px;
+    cursor:pointer; border:2px solid transparent;
+    transition:transform 0.15s, border-color 0.15s;
+    font-size:18px; display:flex; align-items:center; justify-content:center;
+  }
+  .color-swatch.sel { border-color:#fff; transform:scale(1.15); }
+  .modal-actions { display:flex; gap:10px; margin-top:20px; }
+  .btn-save2 { flex:2; background:var(--red); color:#fff; border:none; border-radius:4px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Noto Serif TC','Georgia',serif; }
+  .btn-cancel3 { flex:1; background:#333; color:#ccc; border:none; border-radius:4px; padding:12px; font-size:14px; cursor:pointer; font-family:'Noto Serif TC','Georgia',serif; }
+  .btn-delete2 { background:#3a1010; color:var(--red); border:1px solid #6a2020; border-radius:4px; padding:12px 14px; font-size:14px; cursor:pointer; font-family:'Noto Serif TC','Georgia',serif; }
+
+  /* ── ADD PROFILE ── */
+  .add-profile .avatar {
+    background:#1f1f1f !important;
+    border:3px solid rgba(255,255,255,0.15) !important;
+    color:rgba(255,255,255,0.3);
+    font-size:clamp(36px,6vw,52px);
+  }
+  .add-profile:hover .avatar {
+    border-color:rgba(255,255,255,0.6) !important;
+    color:rgba(255,255,255,0.8);
+  }
+
+  /* scrollbar hide */
+  .emoji-grid::-webkit-scrollbar { width:0; }
+</style>
+</head>
+<body>
+
+<div class="bg-layer"></div>
+<div class="bg-pattern"></div>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="logo">✈ <span>旅遊手帳</span></div>
+
+<div class="main">
+  <div class="heading">
+    <span class="heading-text" id="heading-text">選擇旅遊者</span>
+  </div>
+
+  <div class="profiles" id="profiles"></div>
+
+  <button class="manage-btn" id="manage-btn" onclick="toggleEditMode()">管理旅遊者</button>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal-bg" id="modal-bg" onclick="closeBg(event)">
+  <div class="modal">
+    <h3 id="modal-title">✏️ 編輯旅遊者</h3>
+    <p>選擇頭像與名稱</p>
+    <div class="modal-avatar-preview" id="preview-avatar">🧳</div>
+    <!-- Photo upload tab -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button id="tab-emoji" onclick="switchTab('emoji')" style="flex:1;background:var(--red);color:#fff;border:none;border-radius:6px;padding:8px;font-size:12px;cursor:pointer;font-family:'Noto Serif TC','Georgia',serif;">Emoji</button>
+      <button id="tab-photo" onclick="switchTab('photo')" style="flex:1;background:#333;color:#ccc;border:none;border-radius:6px;padding:8px;font-size:12px;cursor:pointer;font-family:'Noto Serif TC','Georgia',serif;">📷 上傳照片</button>
+    </div>
+    <div id="panel-emoji">
+      <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+    <div id="panel-photo" style="display:none;margin-bottom:12px;">
+      <label for="avatar-file-input" style="display:block;background:#2a2a2a;border:2px dashed #555;border-radius:8px;padding:20px;text-align:center;cursor:pointer;color:#aaa;font-size:14px;">
+        📷 點此從相簿選取照片
+      </label>
+      <input type="file" id="avatar-file-input" accept="image/*" style="display:none;">
+      <button onclick="clearAvatarPhoto()" style="display:block;width:100%;margin-top:8px;background:none;border:1px solid #5a2020;color:#e50914;border-radius:6px;padding:7px;font-size:12px;cursor:pointer;font-family:'Noto Serif TC','Georgia',serif;">✕ 移除照片，改用 Emoji</button>
+    </div>
+    <div class="field">
+      <label>名稱</label>
+      <input id="p-name" type="text" placeholder="輸入名稱" maxlength="10">
+    </div>
+    <div class="field">
+      <label>背景顏色</label>
+      <div class="color-row" id="color-row"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel3" onclick="closeModal()">取消</button>
+      <button class="btn-delete2" id="btn-del2" onclick="deleteProfile()">刪除</button>
+      <button class="btn-save2" onclick="saveProfile()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EMOJIS = ['🧳','✈️','🗺️','🌏','🏔️','🏖️','🌸','🗼','⛩️','🏯','🌊','🎌','🍜','🍣','🎋','🌅','🌃','🏝️','🚂','🛳️','🎡','🏕️','🌋','🎭','🍶','🌺','🦋','🐉','🎑','🏄','🗽','🎠'];
+
+let selectedPhoto = ''; // base64 photo, overrides emoji when set
+
+function switchTab(tab){
+  const isEmoji = tab==='emoji';
+  document.getElementById('panel-emoji').style.display = isEmoji?'':'none';
+  document.getElementById('panel-photo').style.display = isEmoji?'none':'';
+  document.getElementById('tab-emoji').style.background = isEmoji?'var(--red)':'#333';
+  document.getElementById('tab-emoji').style.color = isEmoji?'#fff':'#ccc';
+  document.getElementById('tab-photo').style.background = isEmoji?'#333':'var(--red)';
+  document.getElementById('tab-photo').style.color = isEmoji?'#ccc':'#fff';
+}
+
+function clearAvatarPhoto(){
+  selectedPhoto='';
+  const prev=document.getElementById('preview-avatar');
+  prev.style.backgroundImage='';
+  prev.textContent=selectedEmoji;
+  document.getElementById('avatar-file-input').value='';
+  switchTab('emoji');
+}
+
+function updatePreview(){
+  const prev=document.getElementById('preview-avatar');
+  if(selectedPhoto){
+    prev.style.backgroundImage=`url('${selectedPhoto}')`;
+    prev.style.background=selectedColor;
+    prev.textContent='';
+  } else {
+    prev.style.backgroundImage='';
+    prev.style.background=selectedColor;
+    prev.textContent=selectedEmoji;
+  }
+}
+
+const COLORS = [
+  { bg:'#1a0d2e', label:'深紫' },
+  { bg:'#0d1a2e', label:'深藍' },
+  { bg:'#1a0d06', label:'深橙' },
+  { bg:'#0a1a0f', label:'深綠' },
+  { bg:'#1a0a0a', label:'深紅' },
+  { bg:'#1a1a0a', label:'深黃' },
+  { bg:'#0d1a1a', label:'深青' },
+  { bg:'#1a0d1a', label:'深粉' },
+];
+
+const DEFAULT_PROFILES = [
+  { id:'p1', name:'我', emoji:'🧳', color:'#1a0d06', dest:'fukuoka-travel.html' },
+  { id:'p2', name:'旅伴', emoji:'✈️', color:'#0d1a2e', dest:'fukuoka-travel.html' },
+];
+
+let profiles = loadProfiles();
+let editMode = false;
+let editingProfile = null;
+let selectedEmoji = '🧳';
+let selectedColor = COLORS[0].bg;
+
+function loadProfiles(){
+  try{
+    const s = localStorage.getItem('travelbook-profiles');
+    return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+  } catch(e){ return JSON.parse(JSON.stringify(DEFAULT_PROFILES)); }
+}
+function saveProfiles(){ localStorage.setItem('travelbook-profiles', JSON.stringify(profiles)); }
+function genId(){ return 'p'+Math.random().toString(36).slice(2,7); }
+
+function render(){
+  const container = document.getElementById('profiles');
+  container.innerHTML = '';
+
+  profiles.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'profile';
+    div.tabIndex = 0;
+    div.setAttribute('role', 'button');
+    div.setAttribute('aria-label', p.name);
+    div.innerHTML = `
+      <div class="avatar-wrap">
+        <div class="avatar" style="background:${p.color};${p.photo?`background-image:url('${p.photo}');background-size:cover;background-position:center;`:''}" onclick="handleProfileClick('${p.id}', this)">
+          <span>${p.photo?'':p.emoji}</span>
+          <div class="avatar-shine"></div>
+          <div class="edit-icon">✏️</div>
+        </div>
+      </div>
+      <div class="profile-name">${p.name}</div>`;
+    if(editMode){
+      div.querySelector('.avatar').onclick = () => openEditModal(p.id);
+    }
+    container.appendChild(div);
+  });
+
+  // Add profile button
+  if(editMode && profiles.length < 6){
+    const addDiv = document.createElement('div');
+    addDiv.className = 'profile add-profile';
+    addDiv.innerHTML = `
+      <div class="avatar-wrap">
+        <div class="avatar" onclick="openNewModal()"><span>＋</span></div>
+      </div>
+      <div class="profile-name">新增旅遊者</div>`;
+    container.appendChild(addDiv);
+  }
+
+  if(editMode){
+    container.querySelectorAll('.avatar-wrap').forEach(w => w.closest('.profile').classList.add('edit-mode'));
+  }
+}
+
+function handleProfileClick(id, avatarEl){
+  if(editMode){ openEditModal(id); return; }
+  const p = profiles.find(x=>x.id===id);
+  // zoom animation
+  avatarEl.closest('.avatar-wrap').style.animation = 'none';
+  avatarEl.classList.add('zooming');
+  // fade overlay then redirect
+  setTimeout(()=>{
+    document.getElementById('overlay').classList.add('fade-in');
+  }, 300);
+  setTimeout(()=>{
+    window.location.href = p.dest || 'fukuoka-travel.html';
+  }, 700);
+}
+
+function toggleEditMode(){
+  editMode = !editMode;
+  document.getElementById('heading-text').textContent = editMode ? '管理旅遊者' : '選擇旅遊者';
+  document.getElementById('manage-btn').textContent = editMode ? '完成' : '管理旅遊者';
+  render();
+}
+
+// ── MODAL ──
+function openEditModal(id){
+  editingProfile = profiles.find(p=>p.id===id);
+  selectedEmoji = editingProfile.emoji;
+  selectedColor = editingProfile.color;
+  selectedPhoto = editingProfile.photo||'';
+  document.getElementById('modal-title').textContent = '✏️ 編輯旅遊者';
+  document.getElementById('p-name').value = editingProfile.name;
+  document.getElementById('btn-del2').style.display = profiles.length > 1 ? 'block' : 'none';
+  document.getElementById('avatar-file-input').value='';
+  switchTab(selectedPhoto?'photo':'emoji');
+  renderModalExtras();
+  document.getElementById('modal-bg').classList.add('open');
+}
+function openNewModal(){
+  editingProfile = null;
+  selectedEmoji = EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+  selectedColor = COLORS[Math.floor(Math.random()*COLORS.length)].bg;
+  selectedPhoto = '';
+  document.getElementById('modal-title').textContent = '＋ 新增旅遊者';
+  document.getElementById('p-name').value = '';
+  document.getElementById('btn-del2').style.display = 'none';
+  document.getElementById('avatar-file-input').value='';
+  switchTab('emoji');
+  renderModalExtras();
+  document.getElementById('modal-bg').classList.add('open');
+}
+function renderModalExtras(){
+  // preview
+  updatePreview();
+
+  // emoji grid
+  document.getElementById('emoji-grid').innerHTML = EMOJIS.map(e =>
+    `<div class="emoji-opt${e===selectedEmoji?' sel':''}" onclick="pickEmoji('${e}')">${e}</div>`
+  ).join('');
+
+  // color row
+  document.getElementById('color-row').innerHTML = COLORS.map(c =>
+    `<div class="color-swatch${c.bg===selectedColor?' sel':''}" style="background:${c.bg};" onclick="pickColor('${c.bg}')"></div>`
+  ).join('');
+}
+function pickEmoji(e){
+  selectedEmoji = e;
+  selectedPhoto = ''; // clear photo when emoji picked
+  document.querySelectorAll('.emoji-opt').forEach(el => el.classList.toggle('sel', el.textContent===e));
+  updatePreview();
+}
+function pickColor(c){
+  selectedColor = c;
+  document.querySelectorAll('.color-swatch').forEach(el => el.classList.toggle('sel', el.style.background===c || el.getAttribute('style').includes(c)));
+  updatePreview();
+}
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+function closeBg(e){ if(e.target===document.getElementById('modal-bg')) closeModal(); }
+function saveProfile(){
+  const name = document.getElementById('p-name').value.trim() || '旅遊者';
+  if(editingProfile){
+    editingProfile.name = name;
+    editingProfile.emoji = selectedEmoji;
+    editingProfile.color = selectedColor;
+    editingProfile.photo = selectedPhoto;
+    const idx = profiles.findIndex(p=>p.id===editingProfile.id);
+    profiles[idx] = { ...editingProfile };
+  } else {
+    profiles.push({ id:genId(), name, emoji:selectedEmoji, color:selectedColor, photo:selectedPhoto, dest:'fukuoka-travel.html' });
+  }
+  saveProfiles(); closeModal(); render();
+}
+function deleteProfile(){
+  if(!editingProfile || profiles.length <= 1) return;
+  if(!confirm(`確定要刪除「${editingProfile.name}」？`)) return;
+  profiles = profiles.filter(p=>p.id!==editingProfile.id);
+  saveProfiles(); closeModal(); render();
+}
+
+render();
+
+// ── FILE INPUT LISTENER ──
+document.getElementById('avatar-file-input').addEventListener('change', function(){
+  const file = this.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    selectedPhoto = ev.target.result;
+    updatePreview();
+  };
+  reader.readAsDataURL(file);
+});
+</script>
+</body>
+</html>
