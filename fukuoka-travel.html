@@ -456,7 +456,12 @@ function clearEntryImg(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('ef-img-file').addEventListener('change',function(){
+  const fileInput=document.getElementById('ef-img-file');
+  // 每次 label 被點擊前先清空 value，確保重複選同一張或換張都會觸發 change
+  document.querySelector('label[for="ef-img-file"]').addEventListener('click',()=>{
+    fileInput.value='';
+  });
+  fileInput.addEventListener('change',function(){
     const file=this.files[0];
     if(!file) return;
     const reader=new FileReader();
