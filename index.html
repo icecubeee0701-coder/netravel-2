@@ -397,7 +397,13 @@ function loadProfiles(){
     return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_PROFILES));
   } catch(e){ return JSON.parse(JSON.stringify(DEFAULT_PROFILES)); }
 }
-function saveProfiles(){ localStorage.setItem('travelbook-profiles', JSON.stringify(profiles)); }
+function saveProfiles(){
+  try{
+    localStorage.setItem('travelbook-profiles', JSON.stringify(profiles));
+  } catch(e){
+    alert('⚠️ 儲存失敗！照片可能太大，請試試選小一點的照片。');
+  }
+}
 function genId(){ return 'p'+Math.random().toString(36).slice(2,7); }
 
 function render(){
@@ -541,21 +547,37 @@ function deleteProfile(){
 
 render();
 
+// ── 壓縮圖片 ──
+function compressImage(file, maxSize, quality, callback){
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const img=new Image();
+    img.onload=function(){
+      let w=img.width, h=img.height;
+      if(w>h){ if(w>maxSize){h=Math.round(h*maxSize/w);w=maxSize;} }
+      else { if(h>maxSize){w=Math.round(w*maxSize/h);h=maxSize;} }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      callback(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 // ── FILE INPUT LISTENER ──
 const avatarFileInput = document.getElementById('avatar-file-input');
-// 每次 label 被點擊前先清空，確保換照片時一定觸發 change
 document.querySelector('label[for="avatar-file-input"]').addEventListener('click', ()=>{
   avatarFileInput.value = '';
 });
 avatarFileInput.addEventListener('change', function(){
   const file = this.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev){
-    selectedPhoto = ev.target.result;
+  compressImage(file, 400, 0.8, function(base64){
+    selectedPhoto = base64;
     updatePreview();
-  };
-  reader.readAsDataURL(file);
+  });
 });
 </script>
 </body>
